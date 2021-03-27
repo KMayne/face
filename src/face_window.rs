@@ -1,22 +1,17 @@
-use skia_safe::gpu::gl::FramebufferInfo;
-use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
-use skia_safe::{Color, ColorType, Surface};
-use glutin::event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent, ModifiersState};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowBuilder;
-use glutin::{ContextBuilder, PossiblyCurrent};
-use glutin::WindowedContext;
-use glutin::GlProfile;
 use std::convert::TryInto;
+
 use gl::types::*;
-use skia_safe::gradient_shader;
-use skia_safe::Matrix;
-use skia_safe::Paint;
-use skia_safe::PaintJoin;
-use skia_safe::PaintStyle;
-use skia_safe::Path;
-use skia_safe::Point;
-use skia_safe::TileMode;
+use glutin::{ContextBuilder, PossiblyCurrent};
+use glutin::event::{Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent};
+use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::GlProfile;
+use glutin::window::WindowBuilder;
+use glutin::WindowedContext;
+use skia_safe::{Color, ColorType, Surface};
+use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
+use skia_safe::gpu::gl::FramebufferInfo;
+
+use crate::renderer;
 
 pub fn run_face_window() -> () {
     let el = EventLoop::new();
@@ -52,7 +47,6 @@ pub fn run_face_window() -> () {
             800, 600,
         )));
 
-    let mut frame = 0;
     let mut surface = create_surface(&window_context, &fb_info, &mut gr_context);
 
     el.run(move |event, _, control_flow| {
@@ -83,11 +77,10 @@ pub fn run_face_window() -> () {
                 {
                     let canvas = surface.canvas();
                     canvas.clear(Color::GRAY);
-                    render(canvas);
+                    renderer::draw_ui(canvas);
                 }
                 surface.canvas().flush();
                 window_context.swap_buffers().unwrap();
-                frame += 1;
             }
             _ => (),
         }
@@ -112,16 +105,6 @@ fn handle_keyboard_input(
     }
     window_context.window().request_redraw();
 }
-
-fn render(canvas: &mut skia_safe::canvas::Canvas) {
-    let center = (50, 50);
-    let mut paint = Paint::default();
-    paint.set_anti_alias(true);
-    paint.set_stroke_width(4.0);
-    paint.set_argb(255, 255, 255, 255);
-    canvas.draw_circle(center, 50.0, &paint);
-}
-
 
 fn create_surface(
     window_context: &WindowedContext<PossiblyCurrent>,
