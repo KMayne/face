@@ -3,17 +3,17 @@ use regex::Regex;
 use skia_safe::{canvas::Canvas, Paint, Rect as SkRect};
 
 #[derive(Debug)]
-struct ColourParseError {}
+pub struct ColourParseError {}
 
 #[derive(Copy, Clone)]
-struct ArgbColour {
+pub struct ArgbColour {
     a: u8,
     r: u8,
     g: u8,
     b: u8,
 }
 impl ArgbColour {
-    fn from_hex(hex: &str) -> Result<ArgbColour, ColourParseError> {
+    pub fn from_hex(hex: &str) -> Result<ArgbColour, ColourParseError> {
         let re = Regex::new(r"#?([\dA-Za-z]{3}|[\dA-Za-z]{6}|[\dA-Za-z]{8})").unwrap();
         let captures = re.captures(hex);
         let digits = captures.and_then(|c| { c.get(1) }).map(|m| m.as_str());
@@ -55,28 +55,22 @@ impl ArgbColour {
     }
 }
 
-struct Rect {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    stroke_colour: ArgbColour,
-    fill_colour: ArgbColour
+pub struct Rect {
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
+    pub stroke_colour: ArgbColour,
+    pub fill_colour: ArgbColour
 }
 
 impl Rect {
     fn to_skia_rect(&self) -> SkRect {
-        SkRect::new(self.x, self.y, self.x + self.width, self.y + self.height)
+        SkRect::new(self.left, self.top, self.left + self.width, self.top + self.height)
     }
 }
 
-pub fn draw_ui(canvas: &mut Canvas) {
-    let black = ArgbColour::from_hex("#000").unwrap();
-    let rects = vec! {
-        Rect { x: 0.0, y: 0.0, width: 300.0, height: 400.0, stroke_colour: black, fill_colour: black.invert() },
-        Rect { x: 300.0, y: 0.0, width: 500.0, height: 400.0, stroke_colour: black.invert(), fill_colour: black },
-        Rect { x: 150.0, y: 0.0, width: 250.0, height: 160.0, stroke_colour: ArgbColour::from_hex("#F00").unwrap(), fill_colour: ArgbColour::from_hex("#FFF").unwrap() },
-    };
+pub fn draw_ui(canvas: &mut Canvas, rects: Vec<Rect>) {
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
     paint.set_stroke_width(4.0);

@@ -11,9 +11,10 @@ use skia_safe::{Color, ColorType, Surface};
 use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
 use skia_safe::gpu::gl::FramebufferInfo;
 
-use crate::renderer;
+use crate::{renderer, layout};
+use crate::layout::MarkupElement;
 
-pub fn run_face_window() -> () {
+pub fn run_face_window(root_elem: MarkupElement) -> () {
     let el = EventLoop::new();
     let wb = WindowBuilder::new().with_title("Face Demo");
 
@@ -59,10 +60,11 @@ pub fn run_face_window() -> () {
                     window_context.resize(physical_size)
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                #[allow(deprecated)]
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput {
                         virtual_keycode,
-                        modifiers,
+                          modifiers,
                         ..
                     }, ..
                 } => handle_keyboard_input(
@@ -77,7 +79,9 @@ pub fn run_face_window() -> () {
                 {
                     let canvas = surface.canvas();
                     canvas.clear(Color::GRAY);
-                    renderer::draw_ui(canvas);
+                    let image_info = canvas.image_info();
+                    let rects = layout::generate_layout(&root_elem, image_info.width() as f32, image_info.height() as f32);
+                    renderer::draw_ui(canvas, rects);
                 }
                 surface.canvas().flush();
                 window_context.swap_buffers().unwrap();
