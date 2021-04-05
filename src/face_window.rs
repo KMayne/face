@@ -11,10 +11,9 @@ use skia_safe::{Color, ColorType, Surface};
 use skia_safe::gpu::{BackendRenderTarget, SurfaceOrigin};
 use skia_safe::gpu::gl::FramebufferInfo;
 
-use crate::{renderer, layout};
-use crate::layout::MarkupElement;
+use crate::{layout, renderer, markup};
 
-pub fn run_face_window(root_elem: MarkupElement) -> () {
+pub fn run_face_window(root_elem: markup::MarkupElement) -> () {
     let el = EventLoop::new();
     let wb = WindowBuilder::new().with_title("Face Demo");
 
@@ -27,7 +26,6 @@ pub fn run_face_window(root_elem: MarkupElement) -> () {
         .build_windowed(wb, &el).unwrap();
     let window_context = unsafe { window_context.make_current().unwrap() };
 
-    println!("Pixel format of the window's GL context: {:?}", window_context.get_pixel_format());
 
     gl::load_with(|s| window_context.get_proc_address(&s));
 
@@ -48,16 +46,21 @@ pub fn run_face_window(root_elem: MarkupElement) -> () {
             800, 600,
         )));
 
-    let mut surface = create_surface(&window_context, &fb_info, &mut gr_context);
-
+    let mut surface: skia_safe::Surface = skia_safe::Surface::new_null((800, 600)).unwrap();
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
+        // println!("{:?}", event);
         match event {
-            Event::LoopDestroyed => {}
+            Event::LoopDestroyed => {
+                // Problem in Skia-safe requires this https://github.com/rust-skia/rust-skia/issues/476
+                std::process::exit(42);
+                return
+            },
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::Resized(physical_size) => {
+                    window_context.resize(physical_size);
+                    let new_size = window_context.window().inner_size();
                     surface = create_surface(&window_context, &fb_info, &mut gr_context);
-                    window_context.resize(physical_size)
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 #[allow(deprecated)]
@@ -75,12 +78,20 @@ pub fn run_face_window(root_elem: MarkupElement) -> () {
                 ),
                 _ => (),
             },
+            Event::MainEventsCleared => {
+                window_context.window().request_redraw();
+            },
             Event::RedrawRequested(_) => {
                 {
                     let canvas = surface.canvas();
                     canvas.clear(Color::GRAY);
                     let image_info = canvas.image_info();
-                    let rects = layout::generate_layout(&root_elem, image_info.width() as f32, image_info.height() as f32);
+                    let scale_factor = window_context.window().scale_factor() as f32;
+                    let rects = layout::generate_layout(
+                        &root_elem,
+                        image_info.width() as f32 / scale_factor,
+                        image_info.height() as f32 / scale_factor);
+                    let rects = rects.iter().map(|rect| rect.scale(scale_factor)).collect();
                     renderer::draw_ui(canvas, rects);
                 }
                 surface.canvas().flush();
@@ -117,6 +128,8 @@ fn create_surface(
 ) -> skia_safe::Surface {
     let pixel_format = window_context.get_pixel_format();
     let size = window_context.window().inner_size();
+    println!("Pixel format of the window's GL context ({:?}):\n{:?}", size,
+             window_context.get_pixel_format());
     let backend_render_target = BackendRenderTarget::new_gl(
         (
             size.width.try_into().unwrap(),
@@ -126,15 +139,12 @@ fn create_surface(
         pixel_format.stencil_bits.try_into().unwrap(),
         *fb_info,
     );
-    let mut surface = Surface::from_backend_render_target(
+    Surface::from_backend_render_target(
         gr_context,
         &backend_render_target,
         SurfaceOrigin::BottomLeft,
         ColorType::RGBA8888,
         None,
         None,
-    ).unwrap();
-    let sf = window_context.window().scale_factor() as f32;
-    surface.canvas().scale((sf, sf));
-    surface
+    ).unwrap()
 }
